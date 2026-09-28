@@ -22,11 +22,16 @@ class User(AbstractUser):
 
     site = models.ForeignKey(
         'issues.Site', null=True, blank=True,
-        on_delete=models.PROTECT, related_name='users',
+        on_delete=models.PROTECT, related_name='users', verbose_name='объект',
     )
-    telegram_id = models.BigIntegerField(null=True, blank=True, unique=True)
-    display_name = models.CharField(max_length=100, blank=True)
-    role = models.CharField(max_length=20, choices=Role.choices, null=True, blank=True)
+    telegram_id = models.BigIntegerField(
+        null=True, blank=True, unique=True, verbose_name='Telegram ID',
+        help_text='Участник узнаёт его, отправив боту /start',
+    )
+    display_name = models.CharField(max_length=100, blank=True, verbose_name='отображаемое имя')
+    role = models.CharField(
+        max_length=20, choices=Role.choices, null=True, blank=True, verbose_name='предметная роль',
+    )
 
     def __str__(self):
         return self.display_name or self.username
@@ -57,12 +62,18 @@ class LoginToken(models.Model):
 
     TTL_SECONDS = 10 * 60
 
-    token_hash = models.CharField(max_length=64, primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_tokens')
-    next_path = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    used_at = models.DateTimeField(null=True, blank=True)
+    token_hash = models.CharField(max_length=64, primary_key=True, verbose_name='хеш токена')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='login_tokens', verbose_name='пользователь',
+    )
+    next_path = models.CharField(max_length=255, verbose_name='путь после входа')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='создан')
+    expires_at = models.DateTimeField(verbose_name='истекает')
+    used_at = models.DateTimeField(null=True, blank=True, verbose_name='использован')
+
+    class Meta:
+        verbose_name = 'токен входа'
+        verbose_name_plural = 'токены входа'
 
     @classmethod
     def issue(cls, user, next_path: str) -> str:
