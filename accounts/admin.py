@@ -1,13 +1,33 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.forms import AdminUserCreationForm
+from django.contrib.auth.models import Group
 
 from .models import LoginToken, User
+
+# Группы — стандартный механизм прав Django, в PUNKT не используется:
+# роли (инженер/исполнитель/руководитель) — отдельное поле User.role
+# (ТЗ §1.1), а не группы с наборами permissions.
+admin.site.unregister(Group)
+
+
+class PunktUserCreationForm(AdminUserCreationForm):
+    """Обычные участники входят только по ссылке из бота (ТЗ §1.1, §5.4)
+    и пароль им не нужен — поэтому по умолчанию выключаем переключатель
+    «Аутентификация по паролю». Включать вручную нужно только технической
+    роли администратора, если ей требуется прямой вход в /admin.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['usable_password'].initial = 'false'
 
 
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     """Администратор настраивает участников и роли здесь (ТЗ §1.1)."""
 
+    add_form = PunktUserCreationForm
     fieldsets = DjangoUserAdmin.fieldsets + (
         ('PUNKT', {'fields': ('site', 'telegram_id', 'display_name', 'role')}),
     )
