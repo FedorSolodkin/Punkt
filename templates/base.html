@@ -1,0 +1,29 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PUNKT{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  {% if user.is_authenticated %}
+  <header class="topbar">
+    <a class="topbar__brand" href="/issues">PUNKT</a>
+    <span class="topbar__user">
+      {{ user.display_name|default:user.username }}
+      {% if user.role %}· {{ user.get_role_display }}{% endif %}
+      <form method="post" action="/logout" style="display:inline">
+        {% csrf_token %}
+        <button class="btn btn--secondary" type="submit" style="min-height:32px;padding:4px 10px;margin-left:8px;">Выйти</button>
+      </form>
+    </span>
+  </header>
+  {% endif %}
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

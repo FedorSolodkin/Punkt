@@ -1,0 +1,10 @@
+{$BASE_DOMAIN} {
+	reverse_proxy web:8000
+	encode gzip
+
+	@static path /static/*
+	handle @static {
+		root * /srv
+		file_server
+	}
+}

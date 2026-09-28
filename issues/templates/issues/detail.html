@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Замечание #{{ issue.id }} · PUNKT{% endblock %}
+{% block content %}
+<p><a href="/issues">← К реестру</a></p>
+
+<div class="card">
+  <h1>Замечание #{{ issue.id }}
+    <span class="status-badge status-badge--{{ issue.status }}">{{ issue.get_status_display }}</span>
+    {% if issue.is_overdue %}<span class="overdue-mark">просрочено</span>{% endif %}
+  </h1>
+  <p><strong>Зона:</strong> {{ issue.zone.name }}</p>
+  <p><strong>Описание:</strong> {{ issue.description }}</p>
+  <p><strong>Исполнитель:</strong> {{ issue.assignee.display_name|default:issue.assignee.username }}</p>
+  <p><strong>Срок:</strong> {{ issue.due_date|date:"d.m.Y" }}</p>
+  <p><strong>Автор:</strong> {{ issue.author.display_name|default:issue.author.username }}</p>
+</div>
+
+<div class="card">
+  <h2>Фотографии</h2>
+  <p>До:</p>
+  <div class="photo-grid">
+    {% for photo in photos %}{% if photo.kind == "BEFORE" %}
+      <a href="/photos/{{ photo.id }}?variant=original" target="_blank">
+        <img src="/photos/{{ photo.id }}?variant=preview" alt="Фото до">
+      </a>
+    {% endif %}{% endfor %}
+  </div>
+  <p>После:</p>
+  <div class="photo-grid">
+    {% for photo in photos %}{% if photo.kind == "AFTER" %}
+      <a href="/photos/{{ photo.id }}?variant=original" target="_blank">
+        <img src="/photos/{{ photo.id }}?variant=preview" alt="Фото после">
+      </a>
+    {% endif %}{% endfor %}
+  </div>
+</div>
+
+{% if actor.role == "EXECUTOR" and issue.status == "OPEN" and issue.assignee_id == actor.id %}
+<div class="card">
+  <h2>Отправить на проверку</h2>
+  <form action="/issues/{{ issue.public_id }}/submit" method="post" enctype="multipart/form-data" data-punkt-multipart>
+    <div data-alert></div>
+    <input type="hidden" name="version" value="{{ issue.version }}">
+    <div class="field">
+      <label for="submit-photo">Фото исправления</label>
+      <input id="submit-photo" type="file" name="photo" accept="image/jpeg,image/png" capture="environment" required>
+      <div class="error-text" data-error-for="photo"></div>
+    </div>
+    <button class="btn" type="submit">Отправить на проверку</button>
+  </form>
+</div>
+{% endif %}
+
+{% if actor.role == "ENGINEER" and issue.status == "READY" %}
+<div class="card">
+  <h2>Проверка исправления</h2>
+  <form action="/issues/{{ issue.public_id }}/review" method="post" data-punkt-review>
+    <div data-alert></div>
+    <input type="hidden" name="version" value="{{ issue.version }}">
+    <button class="btn" type="submit" name="decision" value="accept">Закрыть</button>
+    <button class="btn btn--danger" type="submit" name="decision" value="return">Вернуть</button>
+  </form>
+</div>
+{% endif %}
+
+{% if actor.role == "ENGINEER" and issue.status == "OPEN" %}
+<div class="card">
+  <h2>Изменить исполнителя или срок</h2>
+  <form action="/issues/{{ issue.public_id }}/edit" method="post" data-punkt-json>
+    <div data-alert></div>
+    <input type="hidden" name="version" value="{{ issue.version }}">
+    <div class="field">
+      <label for="edit-assignee">Исполнитель</label>
+      <select id="edit-assignee" name="assignee_id" required>
+        {% for u in assignable_users %}
+          <option value="{{ u.id }}" {% if u.id == issue.assignee_id %}selected{% endif %}>{{ u.display_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+      <div class="error-text" data-error-for="assignee_id"></div>
+    </div>
+    <div class="field">
+      <label for="edit-due-date">Срок</label>
+      <input id="edit-due-date" type="date" name="due_date" value="{{ issue.due_date|date:'Y-m-d' }}" required>
+      <div class="error-text" data-error-for="due_date"></div>
+    </div>
+    <div class="field">
+      <label for="edit-reason">Причина изменения</label>
+      <input id="edit-reason" type="text" name="reason" required>
+      <div class="error-text" data-error-for="reason"></div>
+    </div>
+    <button class="btn" type="submit">Сохранить</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>История</h2>
+  {% for event in events %}
+    <div class="history-item">
+      <time>{{ event.created_at|date:"d.m.Y H:i" }}</time>
+      — {{ event.actor.display_name|default:event.actor.username }}:
+      {{ event.get_action_display }}
+      {% if event.reason %} — «{{ event.reason }}»{% endif %}
+    </div>
+  {% empty %}
+    <p>История пуста.</p>
+  {% endfor %}
+</div>
+{% endblock %}

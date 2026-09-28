@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - punkt_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    command: python manage.py migrate --noinput
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - punkt_media:/app/media
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 30
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - punkt_media:/app/media
+      - punkt_backups:/app/backups
+      - punkt_static:/app/staticfiles
+    expose:
+      - "8000"
+
+  bot:
+    build: .
+    restart: unless-stopped
+    command: python manage.py runbot
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - punkt_media:/app/media
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - punkt_static:/srv/static:ro
+      - punkt_caddy_data:/data
+      - punkt_caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  punkt_db_data:
+  punkt_media:
+  punkt_backups:
+  punkt_static:
+  punkt_caddy_data:
+  punkt_caddy_config:

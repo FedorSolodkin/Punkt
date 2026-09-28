@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Вход · PUNKT{% endblock %}
+{% block content %}
+<div class="card" style="max-width:420px;margin:40px auto;">
+  <h1>Вход в PUNKT</h1>
+
+  {% if error %}
+    <div class="alert alert--error">{{ error }}</div>
+  {% endif %}
+
+  {% if token %}
+    <p>Ссылка получена из Telegram-бота. Нажмите «Войти», чтобы открыть реестр.</p>
+    <form method="post" action="/session">
+      {% csrf_token %}
+      <input type="hidden" name="token" value="{{ token }}">
+      <button class="btn" type="submit" style="width:100%;">Войти</button>
+    </form>
+  {% else %}
+    <p>Чтобы войти, откройте бота PUNKT в Telegram и отправьте команду <strong>/web</strong> — бот пришлёт персональную ссылку для входа.</p>
+  {% endif %}
+</div>
+{% endblock %}

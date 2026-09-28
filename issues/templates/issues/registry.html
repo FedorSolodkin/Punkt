@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Реестр замечаний · PUNKT{% endblock %}
+{% block content %}
+<h1>Реестр замечаний</h1>
+
+<form method="get" action="/issues" class="card">
+  <div class="field">
+    <label for="f-status">Статус</label>
+    <select id="f-status" name="status">
+      <option value="">Любой</option>
+      <option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>Открыто</option>
+      <option value="READY" {% if filters.status == "READY" %}selected{% endif %}>На проверке</option>
+      <option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>Закрыто</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="f-due-from">Срок от</label>
+    <input id="f-due-from" type="date" name="due_from" value="{{ filters.due_from }}">
+  </div>
+  <div class="field">
+    <label for="f-due-to">Срок до</label>
+    <input id="f-due-to" type="date" name="due_to" value="{{ filters.due_to }}">
+  </div>
+  <div class="field">
+    <label><input type="checkbox" name="overdue" value="1" {% if filters.overdue == "1" %}checked{% endif %}> Только просроченные</label>
+  </div>
+  <button class="btn" type="submit">Применить</button>
+  <a class="btn btn--secondary" href="/issues">Сбросить фильтры</a>
+  {% if is_manager_or_engineer %}
+    <a class="btn btn--secondary" href="/report.pdf?{{ request.GET.urlencode }}">Скачать PDF</a>
+  {% endif %}
+</form>
+
+{% if error %}
+  <div class="alert alert--error">{{ error }}</div>
+{% elif not has_any_issues %}
+  <div class="alert alert--info">
+    Замечаний пока нет.
+    {% if is_engineer %} Создайте первое замечание через бота Telegram командой /new.{% endif %}
+  </div>
+{% elif out_of_range %}
+  <div class="alert alert--info">Страница за пределами списка. <a href="?page=1">Перейти к первой странице</a>.</div>
+{% elif filters_applied and not issues %}
+  <div class="alert alert--info">Ничего не найдено. <a href="/issues">Сбросить фильтры</a>.</div>
+{% else %}
+  <table class="registry">
+    <thead>
+      <tr>
+        <th>№</th><th>Зона</th><th>Исполнитель</th><th>Срок</th><th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for issue in issues %}
+      <tr>
+        <td data-label="№"><a href="/issues/{{ issue.public_id }}">#{{ issue.id }}</a></td>
+        <td data-label="Зона">{{ issue.zone.name }}</td>
+        <td data-label="Исполнитель">{{ issue.assignee.display_name|default:issue.assignee.username }}</td>
+        <td data-label="Срок">{{ issue.due_date|date:"d.m.Y" }} {% if issue.is_overdue %}<span class="overdue-mark">просрочено</span>{% endif %}</td>
+        <td data-label="Статус"><span class="status-badge status-badge--{{ issue.status }}">{{ issue.get_status_display }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    {% if page_obj.has_previous %}<a class="btn btn--secondary" href="?{{ filters.urlencode }}&page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+    {% if page_obj %}<span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>{% endif %}
+    {% if page_obj.has_next %}<a class="btn btn--secondary" href="?{{ filters.urlencode }}&page={{ page_obj.next_page_number }}">Далее</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}
