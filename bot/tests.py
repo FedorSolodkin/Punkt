@@ -10,7 +10,7 @@ from PIL import Image
 from accounts.models import Role
 from issues.models import Issue, IssueStatus, Site, Zone
 
-from .conversation import SendMessage, handle_update
+from .conversation import SendMessage, SetCommands, deliver, handle_update
 from .models import BotDraft, DraftStep
 
 User = get_user_model()
@@ -85,15 +85,37 @@ class BotConversationTests(TestCase):
 
     def test_start_menu_has_buttons_matching_role(self):
         engineer_actions = run(message_update(4, 555, text='/start'))
-        buttons = [b['callback_data'] for row in engineer_actions[0].reply_markup['inline_keyboard'] for b in row]
+        engineer_message = next(a for a in engineer_actions if isinstance(a, SendMessage))
+        buttons = [b['callback_data'] for row in engineer_message.reply_markup['inline_keyboard'] for b in row]
         self.assertIn('menu:web', buttons)
         self.assertIn('menu:new', buttons)
         self.assertIn('menu:resume', buttons)
         self.assertIn('menu:cancel', buttons)
 
         executor_actions = run(message_update(5, 556, text='/start'))
-        exec_buttons = [b['callback_data'] for row in executor_actions[0].reply_markup['inline_keyboard'] for b in row]
+        executor_message = next(a for a in executor_actions if isinstance(a, SendMessage))
+        exec_buttons = [b['callback_data'] for row in executor_message.reply_markup['inline_keyboard'] for b in row]
         self.assertEqual(exec_buttons, ['menu:web'])
+
+    def test_start_sets_native_telegram_command_menu_per_role(self):
+        engineer_actions = run(message_update(41, 555, text='/start'))
+        engineer_cmds = next(a for a in engineer_actions if isinstance(a, SetCommands))
+        self.assertEqual(engineer_cmds.chat_id, 555)
+        names = {c['command'] for c in engineer_cmds.commands}
+        self.assertEqual(names, {'start', 'web', 'new', 'resume', 'cancel'})
+
+        executor_actions = run(message_update(42, 556, text='/start'))
+        executor_cmds = next(a for a in executor_actions if isinstance(a, SetCommands))
+        exec_names = {c['command'] for c in executor_cmds.commands}
+        self.assertEqual(exec_names, {'start', 'web'})
+
+    def test_deliver_calls_set_my_commands_with_chat_scope(self):
+        client = MagicMock()
+        actions = [SetCommands(555, [{'command': 'start', 'description': 'x'}])]
+        deliver(client, actions)
+        client.set_my_commands.assert_called_once_with(
+            [{'command': 'start', 'description': 'x'}], chat_id=555,
+        )
 
     def test_menu_button_tap_triggers_same_action_as_command(self):
         actions = run(callback_update(6, 555, 'menu:web'))

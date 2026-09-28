@@ -87,6 +87,16 @@ class TelegramClient:
             payload['reply_markup'] = reply_markup
         return self._post('sendMessage', json=payload)
 
+    def set_my_commands(self, commands, chat_id=None):
+        """Список команд для нативной кнопки-меню Telegram (рядом со
+        строкой ввода). Без chat_id — команды по умолчанию для всех
+        ещё не привязанных пользователей; с chat_id — свой список для
+        конкретного участника (по роли)."""
+        payload = {'commands': commands}
+        if chat_id is not None:
+            payload['scope'] = {'type': 'chat', 'chat_id': chat_id}
+        return self._post('setMyCommands', json=payload)
+
     def answer_callback_query(self, callback_query_id, text=None):
         payload = {'callback_query_id': callback_query_id}
         if text:

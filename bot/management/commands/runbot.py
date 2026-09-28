@@ -23,6 +23,12 @@ class Command(BaseCommand):
 
         BotState.load()
         client = TelegramClient()
+        try:
+            # Команда /start видна в кнопке-меню Telegram даже до того,
+            # как администратор привязал участника (ТЗ §5.1).
+            client.set_my_commands([{'command': 'start', 'description': 'Начать / меню'}])
+        except TelegramError:
+            logger.exception('Не удалось задать команды по умолчанию')
         self.stdout.write('runbot: запущен, long polling...')
         try:
             while True:

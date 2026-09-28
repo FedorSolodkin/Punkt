@@ -46,6 +46,14 @@ class AnswerCallback:
         self.text = text
 
 
+class SetCommands:
+    """Список команд для нативной кнопки-меню Telegram у строки ввода."""
+
+    def __init__(self, chat_id, commands):
+        self.chat_id = chat_id
+        self.commands = commands
+
+
 def handle_update(update: dict) -> list:
     if 'callback_query' in update:
         return _handle_callback(update['callback_query'])
@@ -61,6 +69,8 @@ def deliver(client: TelegramClient, actions: list):
                 client.send_message(action.chat_id, action.text, action.reply_markup)
             elif isinstance(action, AnswerCallback):
                 client.answer_callback_query(action.callback_query_id, action.text)
+            elif isinstance(action, SetCommands):
+                client.set_my_commands(action.commands, chat_id=action.chat_id)
         except TelegramError:
             # Сбой ответа не отменяет уже зафиксированную запись (ТЗ §5.1).
             import logging
@@ -103,7 +113,10 @@ def _handle_message(message):
 
 def _handle_command(user, chat_id, command):
     if command == '/start':
-        return [SendMessage(chat_id, _menu_text(user), _menu_buttons(user))]
+        return [
+            SetCommands(chat_id, _bot_commands_for_role(user)),
+            SendMessage(chat_id, _menu_text(user), _menu_buttons(user)),
+        ]
     if command == '/web':
         return _handle_web(user, chat_id)
     if command == '/new':
@@ -136,6 +149,22 @@ def _menu_buttons(user):
             {'text': '❌ Отменить черновик', 'callback_data': 'menu:cancel'},
         ])
     return rows
+
+
+def _bot_commands_for_role(user):
+    """Команды для нативной кнопки-меню Telegram (иконка у строки
+    ввода) — свой список на каждый чат, в зависимости от роли."""
+    commands = [
+        {'command': 'start', 'description': 'Показать меню'},
+        {'command': 'web', 'description': 'Ссылка для входа на сайт'},
+    ]
+    if user.role == Role.ENGINEER:
+        commands += [
+            {'command': 'new', 'description': 'Создать замечание'},
+            {'command': 'resume', 'description': 'Продолжить черновик / последняя карточка'},
+            {'command': 'cancel', 'description': 'Отменить черновик'},
+        ]
+    return commands
 
 
 def _handle_web(user, chat_id):
