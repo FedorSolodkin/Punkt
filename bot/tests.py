@@ -83,6 +83,28 @@ class BotConversationTests(TestCase):
         self.assertIn('инженер', actions[0].text.lower())
         self.assertFalse(BotDraft.objects.filter(user=self.executor).exists())
 
+    def test_start_menu_has_buttons_matching_role(self):
+        engineer_actions = run(message_update(4, 555, text='/start'))
+        buttons = [b['callback_data'] for row in engineer_actions[0].reply_markup['inline_keyboard'] for b in row]
+        self.assertIn('menu:web', buttons)
+        self.assertIn('menu:new', buttons)
+        self.assertIn('menu:resume', buttons)
+        self.assertIn('menu:cancel', buttons)
+
+        executor_actions = run(message_update(5, 556, text='/start'))
+        exec_buttons = [b['callback_data'] for row in executor_actions[0].reply_markup['inline_keyboard'] for b in row]
+        self.assertEqual(exec_buttons, ['menu:web'])
+
+    def test_menu_button_tap_triggers_same_action_as_command(self):
+        actions = run(callback_update(6, 555, 'menu:web'))
+        messages = [a for a in actions if isinstance(a, SendMessage)]
+        self.assertTrue(any('login?t=' in a.text for a in messages))
+
+    def test_menu_new_button_starts_draft_like_slash_new(self):
+        run(callback_update(7, 555, 'menu:new'))
+        draft = BotDraft.objects.get(user=self.engineer)
+        self.assertEqual(draft.step, DraftStep.PHOTO)
+
     @patch('bot.conversation.TelegramClient')
     def test_full_draft_flow_creates_issue(self, mock_client_cls):
         mock_client_cls.return_value = fake_telegram_client()

@@ -103,7 +103,7 @@ def _handle_message(message):
 
 def _handle_command(user, chat_id, command):
     if command == '/start':
-        return [SendMessage(chat_id, _menu_text(user))]
+        return [SendMessage(chat_id, _menu_text(user), _menu_buttons(user))]
     if command == '/web':
         return _handle_web(user, chat_id)
     if command == '/new':
@@ -112,7 +112,7 @@ def _handle_command(user, chat_id, command):
         return _handle_resume(user, chat_id)
     if command == '/cancel':
         return _handle_cancel(user, chat_id)
-    return [SendMessage(chat_id, 'Неизвестная команда. /start — меню.')]
+    return [SendMessage(chat_id, 'Неизвестная команда. /start — меню.', _menu_buttons(user))]
 
 
 def _menu_text(user):
@@ -124,6 +124,18 @@ def _menu_text(user):
             '/cancel — отменить черновик',
         ]
     return '\n'.join(lines)
+
+
+def _menu_buttons(user):
+    """Те же команды, но кнопками — не набирать вручную (ТЗ §5.1)."""
+    rows = [[{'text': '🌐 Открыть сайт', 'callback_data': 'menu:web'}]]
+    if user.role == Role.ENGINEER:
+        rows.append([{'text': '🆕 Новое замечание', 'callback_data': 'menu:new'}])
+        rows.append([
+            {'text': '▶️ Продолжить черновик', 'callback_data': 'menu:resume'},
+            {'text': '❌ Отменить черновик', 'callback_data': 'menu:cancel'},
+        ])
+    return rows
 
 
 def _handle_web(user, chat_id):
@@ -280,8 +292,9 @@ def _handle_callback(callback_query):
     if user is None or chat_id is None:
         return [AnswerCallback(callback_id, 'Доступ не найден')]
 
-    if data == 'new_issue':
-        return [AnswerCallback(callback_id)] + _handle_new(user, chat_id)
+    if data.startswith('menu:'):
+        command = '/' + data.split(':', 1)[1]
+        return [AnswerCallback(callback_id)] + _handle_command(user, chat_id, command)
 
     parts = (data.split('|', 2) + ['', ''])[:3]
     draft_hex, action, value = parts
@@ -365,7 +378,7 @@ def _confirm_draft(user, chat_id, draft, callback_id):
     draft.delete()
 
     link = f'{settings.BASE_URL}/issues/{issue.public_id}'
-    buttons = [[{'text': 'Открыть', 'url': link}, {'text': 'Новое замечание', 'callback_data': 'new_issue'}]]
+    buttons = [[{'text': 'Открыть', 'url': link}, {'text': 'Новое замечание', 'callback_data': 'menu:new'}]]
     return [AnswerCallback(callback_id), SendMessage(chat_id, f'Замечание #{issue.id} создано.\n{link}', buttons)]
 
 
