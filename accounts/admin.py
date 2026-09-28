@@ -23,12 +23,24 @@ class PunktUserCreationForm(AdminUserCreationForm):
         self.fields['usable_password'].initial = 'false'
 
 
+def _without_groups(fieldsets):
+    """Убирает поле groups (не используется — см. unregister(Group) выше),
+    оставляя user_permissions: это рабочий способ делегировать доступ в
+    /admin без выдачи полного суперпользователя."""
+    result = []
+    for name, opts in fieldsets:
+        opts = dict(opts)
+        opts['fields'] = tuple(f for f in opts['fields'] if f != 'groups')
+        result.append((name, opts))
+    return tuple(result)
+
+
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     """Администратор настраивает участников и роли здесь (ТЗ §1.1)."""
 
     add_form = PunktUserCreationForm
-    fieldsets = DjangoUserAdmin.fieldsets + (
+    fieldsets = _without_groups(DjangoUserAdmin.fieldsets) + (
         ('PUNKT', {'fields': ('site', 'telegram_id', 'display_name', 'role')}),
     )
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (
